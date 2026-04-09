@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Контент-план — Вместе</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #fff; color: #1a1a1a; font-size: 14px; }
+#app { padding: 20px; max-width: 900px; margin: 0 auto; }
+.header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
+.month-title { font-size: 20px; font-weight: 600; }
+.nav-btn { background: none; border: 1px solid #ddd; border-radius: 8px; padding: 6px 16px; font-size: 13px; cursor: pointer; color: #333; font-family: inherit; }
+.nav-btn:hover { background: #f5f5f5; }
+.top-bar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; flex-wrap: wrap; gap: 8px; }
+.legend { display: flex; gap: 16px; flex-wrap: wrap; }
+.leg-item { display: flex; align-items: center; gap: 6px; font-size: 12px; color: #666; }
+.leg-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.sync-bar { display: flex; align-items: center; gap: 6px; font-size: 11px; color: #999; }
+.sync-dot { width: 6px; height: 6px; border-radius: 50%; background: #7bc47f; flex-shrink: 0; transition: background 0.3s; }
+.sync-dot.saving  { background: #f0a500; }
+.sync-dot.error   { background: #e24b4a; }
+.sync-dot.loading { background: #aaa; }
+table { width: 100%; border-collapse: collapse; }
+th { text-align: left; padding: 8px 12px; color: #999; font-weight: 400; border-bottom: 1px solid #eee; font-size: 12px; }
+td { padding: 10px 12px; border-bottom: 1px solid #eee; vertical-align: top; }
+tr:last-child td { border-bottom: none; }
+.date-cell { white-space: nowrap; width: 80px; padding-top: 14px; }
+.date-num { font-size: 16px; font-weight: 600; }
+.date-day { font-size: 11px; color: #bbb; margin-top: 2px; }
+.card { border-radius: 8px; padding: 10px 12px; margin-bottom: 8px; border: 1px solid #eee; }
+.card:last-child { margin-bottom: 0; }
+.card-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+.rubric-label { font-size: 12px; font-weight: 600; }
+.platforms { display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 8px; }
+.badge { font-size: 11px; padding: 2px 8px; border-radius: 20px; }
+.badge-tg { background: #e6f1fb; color: #0c447c; }
+.badge-vk { background: #eaf3de; color: #3b6d11; }
+.badge-ig { background: #fbeaf0; color: #72243e; }
+.status-select { font-size: 11px; padding: 3px 22px 3px 8px; border-radius: 20px; border: 1px solid #ddd; cursor: pointer; font-family: inherit; appearance: none; -webkit-appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23aaa'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 6px center; }
+.status-todo { background: #f5f5f2; color: #666;    border-color: #ccc; }
+.status-wip  { background: #fff8e6; color: #7a4800; border-color: #f0c060; }
+.status-done { background: #eaf3de; color: #3b6d11; border-color: #97c459; }
+textarea { width: 100%; border: 1px solid #eee; border-radius: 8px; padding: 8px 10px; font-size: 12px; font-family: inherit; resize: vertical; min-height: 72px; color: #333; background: #fafafa; line-height: 1.6; }
+textarea:focus { outline: none; border-color: #bbb; background: #fff; }
+.card-actions { margin-top: 6px; }
+.copy-btn { font-size: 11px; padding: 3px 10px; border: 1px solid #ddd; border-radius: 8px; background: none; cursor: pointer; color: #888; font-family: inherit; }
+.copy-btn:hover { background: #f5f5f5; }
+.copy-btn.copied { color: #3b6d11; border-color: #97c459; }
+</style>
+</head>
+<body>
+<div id="app">
+  <div class="header">
+    <button class="nav-btn" id="prevBtn">← Назад</button>
+    <span class="month-title" id="monthTitle"></span>
+    <button class="nav-btn" id="nextBtn">Вперёд →</button>
+  </div>
+  <div class="top-bar">
+    <div class="legend">
+      <div class="leg-item"><div class="leg-dot" style="background:#378ADD"></div>Мини-подкаст — пт, TG + VK</div>
+      <div class="leg-item"><div class="leg-dot" style="background:#D4537E"></div>Анонс групп — вс, все соцсети</div>
+      <div class="leg-item"><div class="leg-dot" style="background:#639922"></div>Лонг-рид — ср, TG + VK</div>
+    </div>
+    <div class="sync-bar">
+      <div class="sync-dot" id="syncDot"></div>
+      <span id="syncLabel">Подключение...</span>
+    </div>
+  </div>
+  <table>
+    <thead><tr><th style="width:80px">Дата</th><th>Контент</th></tr></thead>
+    <tbody id="tableBody"></tbody>
+  </table>
+</div>
+
+<script>
+// ====================================================
+// ВСТАВЬ СВОИ ДАННЫЕ СЮДА (только эти две строки):
+var API_KEY = '$2a$10$ivAV649DwVla8KCJvhqcJODyDCwOBMvE.beZN/4UvVyr82lF8Q0NC';
+var BIN_ID  = '69d7631eaaba882197dc7f3f';
+// ====================================================
+
+var MONTHS_RU = ['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'];
+var DAYS_RU   = ['вс','пн','вт','ср','чт','пт','сб'];
+var RUBRICS = [
+  { dow: 3, type: 'longread',  label: 'Лонг-рид',     platforms: ['TG','VK'],             color: '#639922', hasText: true },
+  { dow: 5, type: 'podcast',   label: 'Мини-подкаст', platforms: ['TG','VK'],             color: '#378ADD', hasText: false },
+  { dow: 0, type: 'announce',  label: 'Анонс групп',  platforms: ['Instagram','TG','VK'], color: '#D4537E', hasText: true }
+];
+var STATUSES = [
+  { value: 'todo', label: '⬜ Не начато', cls: 'status-todo' },
+  { value: 'wip',  label: '🟡 В работе',  cls: 'status-wip'  },
+  { value: 'done', label: '✅ Готово',     cls: 'status-done' }
+];
+var POLL_MS = 10000;
+var remoteData = {};
+var saveTimer = null, pollTimer = null;
+var current = new Date(); current.setDate(1);
+
+function binRead() {
+  return fetch('https://api.jsonbin.io/v3/b/' + BIN_ID + '/latest', {
+    headers: { 'X-Master-Key': API_KEY }
+  }).then(function(r) {
+    if (!r.ok) throw new Error(r.status);
+    return r.json();
+  }).then(function(j) { return j.record || {}; });
+}
+
+function binWrite(data) {
+  return fetch('https://api.jsonbin.io/v3/b/' + BIN_ID, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', 'X-Master-Key': API_KEY },
+    body: JSON.stringify(data)
+  }).then(function(r) { if (!r.ok) throw new Error(r.status); });
+}
+
+function setSync(type, label) {
+  document.getElementById('syncDot').className = 'sync-dot' +
+    (type === 'saving' ? ' saving' : type === 'error' ? ' error' : type === 'loading' ? ' loading' : '');
+  document.getElementById('syncLabel').textContent = label;
+}
+
+function scheduleSave() {
+  setSync('saving', 'Сохранение...');
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(function() {
+    binWrite(remoteData)
+      .then(function() { setSync('ok', 'Сохранено'); })
+      .catch(function() { setSync('error', 'Ошибка сохранения'); });
+  }, 800);
+}
+
+function startPolling() {
+  clearInterval(pollTimer);
+  pollTimer = setInterval(function() {
+    binRead().then(function(fresh) {
+      var before = JSON.stringify(remoteData);
+      remoteData = fresh;
+      if (JSON.stringify(remoteData) !== before) { renderTable(); setSync('ok', 'Обновлено'); }
+    }).catch(function() {});
+  }, POLL_MS);
+}
+
+function badgeClass(p) {
+  return p === 'TG' ? 'badge-tg' : p === 'VK' ? 'badge-vk' : 'badge-ig';
+}
+
+function renderTable() {
+  var year = current.getFullYear(), month = current.getMonth();
+  document.getElementById('monthTitle').textContent = MONTHS_RU[month] + ' ' + year;
+  var days = new Date(year, month + 1, 0).getDate();
+  var tbody = document.getElementById('tableBody');
+  tbody.innerHTML = '';
+
+  for (var d = 1; d <= days; d++) {
+    var date = new Date(year, month, d);
+    var dayRubrics = RUBRICS.filter(function(r) { return r.dow === date.getDay(); });
+    if (!dayRubrics.length) continue;
+
+    var tr = document.createElement('tr');
+    var tdDate = document.createElement('td');
+    tdDate.className = 'date-cell';
+    tdDate.innerHTML = '<div class="date-num">' + d + '</div><div class="date-day">' + DAYS_RU[date.getDay()] + '</div>';
+    tr.appendChild(tdDate);
+
+    var tdContent = document.createElement('td');
+    (function(d, dayRubrics) {
+      dayRubrics.forEach(function(rubric) {
+        var key = year + '-' + month + '-' + d + '_' + rubric.type;
+        var saved = remoteData[key] || { status: 'todo', text: '' };
+
+        var card = document.createElement('div');
+        card.className = 'card';
+        card.style.borderLeft = '3px solid ' + rubric.color;
+
+        var cardTop = document.createElement('div');
+        cardTop.className = 'card-top';
+
+        var labelEl = document.createElement('div');
+        labelEl.className = 'rubric-label';
+        labelEl.textContent = rubric.label;
+        cardTop.appendChild(labelEl);
+
+        var sel = document.createElement('select');
+        var curSt = STATUSES.filter(function(s) { return s.value === saved.status; })[0] || STATUSES[0];
+        sel.className = 'status-select ' + curSt.cls;
+        STATUSES.forEach(function(s) {
+          var opt = document.createElement('option');
+          opt.value = s.value; opt.textContent = s.label;
+          if (s.value === saved.status) opt.selected = true;
+          sel.appendChild(opt);
+        });
+        (function(sel, key) {
+          sel.addEventListener('change', function() {
+            var s = STATUSES.filter(function(x) { return x.value === sel.value; })[0];
+            sel.className = 'status-select ' + s.cls;
+            if (!remoteData[key]) remoteData[key] = { status: 'todo', text: '' };
+            remoteData[key].status = sel.value;
+            scheduleSave();
+          });
+        })(sel, key);
+        cardTop.appendChild(sel);
+        card.appendChild(cardTop);
+
+        var platforms = document.createElement('div');
+        platforms.className = 'platforms';
+        rubric.platforms.forEach(function(p) {
+          var b = document.createElement('span');
+          b.className = 'badge ' + badgeClass(p);
+          b.textContent = p; platforms.appendChild(b);
+        });
+        card.appendChild(platforms);
+
+        if (rubric.hasText) {
+          var ta = document.createElement('textarea');
+          ta.placeholder = rubric.type === 'longread' ? 'Вставьте текст лонг-рида...' : 'Вставьте текст анонса...';
+          ta.value = saved.text || '';
+          (function(ta, key) {
+            ta.addEventListener('input', function() {
+              if (!remoteData[key]) remoteData[key] = { status: 'todo', text: '' };
+              remoteData[key].text = ta.value;
+              scheduleSave();
+            });
+          })(ta, key);
+          card.appendChild(ta);
+
+          var actions = document.createElement('div');
+          actions.className = 'card-actions';
+          var copyBtn = document.createElement('button');
+          copyBtn.className = 'copy-btn';
+          copyBtn.textContent = 'Скопировать текст';
+          (function(copyBtn, ta) {
+            copyBtn.addEventListener('click', function() {
+              if (!ta.value) return;
+              navigator.clipboard.writeText(ta.value).then(function() {
+                copyBtn.textContent = 'Скопировано!';
+                copyBtn.classList.add('copied');
+                setTimeout(function() { copyBtn.textContent = 'Скопировать текст'; copyBtn.classList.remove('copied'); }, 2000);
+              });
+            });
+          })(copyBtn, ta);
+          actions.appendChild(copyBtn);
+          card.appendChild(actions);
+        }
+
+        tdContent.appendChild(card);
+      });
+    })(d, dayRubrics);
+
+    tr.appendChild(tdContent);
+    tbody.appendChild(tr);
+  }
+}
+
+function init() {
+  setSync('loading', 'Подключение...');
+  binRead().then(function(data) {
+    remoteData = data;
+    setSync('ok', 'Синхронизировано');
+    renderTable();
+    startPolling();
+  }).catch(function() {
+    setSync('error', 'Ошибка — проверьте ключи в файле');
+    renderTable();
+  });
+}
+
+document.getElementById('prevBtn').addEventListener('click', function() {
+  current.setMonth(current.getMonth() - 1);
+  setSync('loading', 'Загрузка...');
+  binRead().then(function(d) { remoteData = d; setSync('ok', 'Синхронизировано'); renderTable(); })
+           .catch(function() { setSync('error', 'Ошибка'); renderTable(); });
+});
+document.getElementById('nextBtn').addEventListener('click', function() {
+  current.setMonth(current.getMonth() + 1);
+  setSync('loading', 'Загрузка...');
+  binRead().then(function(d) { remoteData = d; setSync('ok', 'Синхронизировано'); renderTable(); })
+           .catch(function() { setSync('error', 'Ошибка'); renderTable(); });
+});
+
+init();
+</script>
+</body>
+</html>
