@@ -58,9 +58,9 @@ textarea:focus { outline: none; border-color: #bbb; background: #fff; }
   </div>
   <div class="top-bar">
     <div class="legend">
-      <div class="leg-item"><div class="leg-dot" style="background:#378ADD"></div>Мини-подкаст — пт, TG + VK</div>
-      <div class="leg-item"><div class="leg-dot" style="background:#D4537E"></div>Анонс групп — вс, все соцсети</div>
-      <div class="leg-item"><div class="leg-dot" style="background:#639922"></div>Лонг-рид — ср, TG + VK</div>
+    <div class="leg-item"><div class="leg-dot" style="background:#378ADD"></div>Мини-подкаст — пт, все соцсети</div>
+<div class="leg-item"><div class="leg-dot" style="background:#D4537E"></div>Анонс групп — вс, все соцсети</div>
+<div class="leg-item"><div class="leg-dot" style="background:#639922"></div>Лонг-рид — ср, все соцсети</div>
     </div>
     <div class="sync-bar">
       <div class="sync-dot" id="syncDot"></div>
@@ -83,8 +83,8 @@ var BIN_ID  = '69d7631eaaba882197dc7f3f';
 var MONTHS_RU = ['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'];
 var DAYS_RU   = ['вс','пн','вт','ср','чт','пт','сб'];
 var RUBRICS = [
-  { dow: 3, type: 'longread',  label: 'Лонг-рид',     platforms: ['TG','VK'],             color: '#639922', hasText: true },
-  { dow: 5, type: 'podcast',   label: 'Мини-подкаст', platforms: ['TG','VK'],             color: '#378ADD', hasText: false },
+  { dow: 3, type: 'longread',  label: 'Лонг-рид',     platforms: ['Instagram','TG','VK'], color: '#639922', hasText: true },
+  { dow: 5, type: 'podcast',   label: 'Мини-подкаст', platforms: ['Instagram','TG','VK'], color: '#378ADD', hasText: false },
   { dow: 0, type: 'announce',  label: 'Анонс групп',  platforms: ['Instagram','TG','VK'], color: '#D4537E', hasText: true }
 ];
 var STATUSES = [
