@@ -92,9 +92,11 @@ var STATUSES = [
   { value: 'wip',  label: '🟡 В работе',  cls: 'status-wip'  },
   { value: 'done', label: '✅ Готово',     cls: 'status-done' }
 ];
-var POLL_MS = 10000;
+var POLL_MS = 15000;
 var remoteData = {};
-var saveTimer = null, pollTimer = null;
+var localDirty = {};   // ключи которые я редактирую/недавно сохранил локально
+var saveTimers = {};   // отдельный таймер на каждый ключ
+var pollTimer = null;
 var current = new Date(); current.setDate(1);
 
 function binRead() {
@@ -120,23 +122,64 @@ function setSync(type, label) {
   document.getElementById('syncLabel').textContent = label;
 }
 
-function scheduleSave() {
+// Сохранение по конкретному ключу — таймер свой у каждой карточки
+function scheduleSave(key) {
   setSync('saving', 'Сохранение...');
-  clearTimeout(saveTimer);
-  saveTimer = setTimeout(function() {
-    binWrite(remoteData)
-      .then(function() { setSync('ok', 'Сохранено'); })
-      .catch(function() { setSync('error', 'Ошибка сохранения'); });
+  localDirty[key] = Date.now();
+  clearTimeout(saveTimers[key]);
+  saveTimers[key] = setTimeout(function() {
+    flushSave();
   }, 800);
+}
+
+// Немедленное сохранение (по blur или после таймера)
+function flushSave() {
+  binWrite(remoteData)
+    .then(function() {
+      setSync('ok', 'Сохранено');
+      // через 5 секунд считаем что наши изменения уже точно на сервере
+      setTimeout(function() {
+        var now = Date.now();
+        Object.keys(localDirty).forEach(function(k) {
+          if (now - localDirty[k] > 5000) delete localDirty[k];
+        });
+      }, 5000);
+    })
+    .catch(function() { setSync('error', 'Ошибка сохранения'); });
 }
 
 function startPolling() {
   clearInterval(pollTimer);
   pollTimer = setInterval(function() {
     binRead().then(function(fresh) {
-      var before = JSON.stringify(remoteData);
-      remoteData = fresh;
-      if (JSON.stringify(remoteData) !== before) { renderTable(); setSync('ok', 'Обновлено'); }
+      // мерджим: для ключей которые я недавно редактировал — оставляем локальное
+      var merged = {};
+      Object.keys(fresh).forEach(function(k) { merged[k] = fresh[k]; });
+      Object.keys(localDirty).forEach(function(k) {
+        if (remoteData[k]) merged[k] = remoteData[k];
+      });
+
+      // если ничего не изменилось — не трогаем DOM
+      if (JSON.stringify(merged) === JSON.stringify(remoteData)) return;
+
+      // если изменилось — обновляем без потери фокуса в активном textarea
+      var active = document.activeElement;
+      var activeKey = active && active.dataset ? active.dataset.key : null;
+      var activeStart = active && active.tagName === 'TEXTAREA' ? active.selectionStart : null;
+      var activeEnd   = active && active.tagName === 'TEXTAREA' ? active.selectionEnd   : null;
+
+      remoteData = merged;
+      renderTable();
+      setSync('ok', 'Обновлено');
+
+      // восстанавливаем фокус и позицию курсора
+      if (activeKey) {
+        var restored = document.querySelector('[data-key="' + activeKey + '"]');
+        if (restored) {
+          restored.focus();
+          if (activeStart !== null) restored.setSelectionRange(activeStart, activeEnd);
+        }
+      }
     }).catch(function() {});
   }, POLL_MS);
 }
@@ -184,6 +227,7 @@ function renderTable() {
         var sel = document.createElement('select');
         var curSt = STATUSES.filter(function(s) { return s.value === saved.status; })[0] || STATUSES[0];
         sel.className = 'status-select ' + curSt.cls;
+        sel.dataset.key = key + '_status';
         STATUSES.forEach(function(s) {
           var opt = document.createElement('option');
           opt.value = s.value; opt.textContent = s.label;
@@ -196,7 +240,7 @@ function renderTable() {
             sel.className = 'status-select ' + s.cls;
             if (!remoteData[key]) remoteData[key] = { status: 'todo', text: '' };
             remoteData[key].status = sel.value;
-            scheduleSave();
+            scheduleSave(key);
           });
         })(sel, key);
         cardTop.appendChild(sel);
@@ -215,11 +259,17 @@ function renderTable() {
           var ta = document.createElement('textarea');
           ta.placeholder = rubric.type === 'longread' ? 'Вставьте текст лонг-рида...' : 'Вставьте текст анонса...';
           ta.value = saved.text || '';
+          ta.dataset.key = key;
           (function(ta, key) {
             ta.addEventListener('input', function() {
               if (!remoteData[key]) remoteData[key] = { status: 'todo', text: '' };
               remoteData[key].text = ta.value;
-              scheduleSave();
+              scheduleSave(key);
+            });
+            ta.addEventListener('blur', function() {
+              // при уходе из поля — сохранить немедленно, не ждать таймер
+              clearTimeout(saveTimers[key]);
+              flushSave();
             });
           })(ta, key);
           card.appendChild(ta);
