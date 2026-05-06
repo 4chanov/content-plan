@@ -84,7 +84,7 @@ var MONTHS_RU = ['Январь','Февраль','Март','Апрель','Ма
 var DAYS_RU   = ['вс','пн','вт','ср','чт','пт','сб'];
 var RUBRICS = [
   { dow: 3, type: 'longread',  label: 'Лонг-рид',     platforms: ['Instagram','TG','VK'], color: '#639922', hasText: true },
-  { dow: 5, type: 'podcast',   label: 'Мини-подкаст', platforms: ['Instagram','TG','VK'], color: '#378ADD', hasText: false },
+  { dow: 5, type: 'podcast',   label: 'Мини-подкаст', platforms: ['Instagram','TG','VK'], color: '#378ADD', hasText: true },
   { dow: 0, type: 'announce',  label: 'Анонс групп',  platforms: ['Instagram','TG','VK'], color: '#D4537E', hasText: true }
 ];
 var STATUSES = [
@@ -257,7 +257,9 @@ function renderTable() {
 
         if (rubric.hasText) {
           var ta = document.createElement('textarea');
-          ta.placeholder = rubric.type === 'longread' ? 'Вставьте текст лонг-рида...' : 'Вставьте текст анонса...';
+         ta.placeholder = rubric.type === 'longread' ? 'Вставьте текст лонг-рида...' 
+               : rubric.type === 'podcast'  ? 'Вставьте текст подкаста...'
+               : 'Вставьте текст анонса...';
           ta.value = saved.text || '';
           ta.dataset.key = key;
           (function(ta, key) {
