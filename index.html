@@ -109,11 +109,28 @@ function binRead() {
 }
 
 function binWrite(data) {
-  return fetch('https://api.jsonbin.io/v3/b/' + BIN_ID, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json', 'X-Master-Key': API_KEY },
-    body: JSON.stringify(data)
-  }).then(function(r) { if (!r.ok) throw new Error(r.status); });
+  // Защита от перезаписи: перед записью читаем то что на сервере
+  // и убеждаемся, что не теряем ключи которых у нас нет в памяти.
+  return binRead().then(function(serverData) {
+    var localKeys = Object.keys(data);
+    var serverKeys = Object.keys(serverData);
+    
+    // Если на сервере есть ключи которых нет у нас локально — это значит
+    // мы работаем с устаревшим состоянием, нельзя сохранять
+    var missingKeys = serverKeys.filter(function(k) { return !(k in data); });
+    if (missingKeys.length > 0) {
+      console.warn('Отмена сохранения: на сервере есть ключи которых нет локально:', missingKeys);
+      setSync('error', 'Конфликт версий — обновите страницу');
+      throw new Error('STALE_DATA');
+    }
+    
+    // Безопасно сохранять
+    return fetch('https://api.jsonbin.io/v3/b/' + BIN_ID, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', 'X-Master-Key': API_KEY },
+      body: JSON.stringify(data)
+    }).then(function(r) { if (!r.ok) throw new Error(r.status); });
+  });
 }
 
 function setSync(type, label) {
